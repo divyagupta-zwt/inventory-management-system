@@ -5,7 +5,7 @@ const orderRoutes= require('./routes/order-routes');
 const warehouseRoutes= require('./routes/warehouse-routes')
 
 app.use(express.json());
-app.use('/api', orderRoutes);
+app.use('/api/orders', orderRoutes);
 app.use('/api', warehouseRoutes);
 
 const PORT= process.env.PORT || 3000;
