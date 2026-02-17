@@ -8,3 +8,12 @@ exports.getStock= async (req, res)=>{
         res.status(400).json({error: error.message});
     }
 }
+
+exports.getWarehouses= async(req, res)=>{
+    try{
+        const [rows]=await db.query(`select warehouse_name, location from warehouse;`);
+        res.json(rows);
+    }catch(error){
+        res.status(400).json({error: error.message});
+    }
+}
