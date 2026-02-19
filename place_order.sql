@@ -9,12 +9,12 @@ BEGIN
     DECLARE items_count INT;
     DECLARE v_product_id INT;
     DECLARE v_quantity INT;
-    DECLARE v_price DECIMAL(10,2);
+    DECLARE v_unit_price DECIMAL(10,2);
+    DECLARE v_total_price DECIMAL(10,2);
     DECLARE v_total_amount DECIMAL(10,2) DEFAULT 0;
 
     START TRANSACTION;
 
-    -- Check warehouse
     IF NOT EXISTS (
         SELECT 1 FROM warehouse
         WHERE warehouse_id = p_warehouse_id
@@ -25,10 +25,11 @@ BEGIN
 
     SET items_count = JSON_LENGTH(p_items);
 
-    -- Validate products and stock
+    SET i = 0;
+
     WHILE i < items_count DO
-        SET v_product_id = JSON_EXTRACT(p_items, CONCAT('$[', i, '].product_id'));
-        SET v_quantity = JSON_EXTRACT(p_items, CONCAT('$[', i, '].quantity'));
+        SET v_product_id = JSON_UNQUOTE(JSON_EXTRACT(p_items, CONCAT('$[', i, '].product_id')));
+        SET v_quantity = JSON_UNQUOTE(JSON_EXTRACT(p_items, CONCAT('$[', i, '].quantity')));
 
         IF NOT EXISTS (
             SELECT 1 FROM products WHERE product_id = v_product_id
@@ -49,37 +50,53 @@ BEGIN
         SET i = i + 1;
     END WHILE;
 
-    -- Insert order
     INSERT INTO orders(customer_name, order_date, warehouse_id, status)
-    VALUES(p_customer_name, NOW(), p_warehouse_id, 'PLACED');
+    VALUES (p_customer_name, NOW(), p_warehouse_id, 'PLACED');
 
     SET p_order_id = LAST_INSERT_ID();
 
-    -- Insert order items and compute total
     SET i = 0;
-    WHILE i < items_count DO
-        SET v_product_id = JSON_EXTRACT(p_items, CONCAT('$[', i, '].product_id'));
-        SET v_quantity = JSON_EXTRACT(p_items, CONCAT('$[', i, '].quantity'));
 
-        SELECT price INTO v_price FROM products
+    WHILE i < items_count DO
+        SET v_product_id = JSON_UNQUOTE(JSON_EXTRACT(p_items, CONCAT('$[', i, '].product_id')));
+        SET v_quantity = JSON_UNQUOTE(JSON_EXTRACT(p_items, CONCAT('$[', i, '].quantity')));
+
+        -- Get product unit price
+        SELECT price INTO v_unit_price
+        FROM products
         WHERE product_id = v_product_id;
 
-        INSERT INTO order_items(order_id, product_id, quantity, price)
-        VALUES (p_order_id, v_product_id, v_quantity, v_quantity * v_price);
+        -- Calculate product total
+        SET v_total_price = v_quantity * v_unit_price;
 
-        -- Update warehouse stock
+        -- Store unit price + total price
+        INSERT INTO order_items(
+            order_id,
+            product_id,
+            quantity,
+            unit_price,
+            total_price
+        )
+        VALUES (
+            p_order_id,
+            v_product_id,
+            v_quantity,
+            v_unit_price,
+            v_total_price
+        );
+
+        -- Update stock
         UPDATE warehouse_stock
         SET quantity = quantity - v_quantity
         WHERE warehouse_id = p_warehouse_id
         AND product_id = v_product_id;
 
-        -- Add to total
-        SET v_total_amount = v_total_amount + (v_quantity * v_price);
+        -- Add to order total
+        SET v_total_amount = v_total_amount + v_total_price;
 
         SET i = i + 1;
     END WHILE;
 
-    -- Update order with total_amount
     UPDATE orders
     SET total_amount = v_total_amount
     WHERE order_id = p_order_id;
