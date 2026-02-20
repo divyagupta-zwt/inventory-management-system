@@ -61,15 +61,12 @@ BEGIN
         SET v_product_id = JSON_UNQUOTE(JSON_EXTRACT(p_items, CONCAT('$[', i, '].product_id')));
         SET v_quantity = JSON_UNQUOTE(JSON_EXTRACT(p_items, CONCAT('$[', i, '].quantity')));
 
-        -- Get product unit price
         SELECT price INTO v_unit_price
         FROM products
         WHERE product_id = v_product_id;
 
-        -- Calculate product total
         SET v_total_price = v_quantity * v_unit_price;
 
-        -- Store unit price + total price
         INSERT INTO order_items(
             order_id,
             product_id,
@@ -85,13 +82,11 @@ BEGIN
             v_total_price
         );
 
-        -- Update stock
         UPDATE warehouse_stock
         SET quantity = quantity - v_quantity
         WHERE warehouse_id = p_warehouse_id
         AND product_id = v_product_id;
 
-        -- Add to order total
         SET v_total_amount = v_total_amount + v_total_price;
 
         SET i = i + 1;
