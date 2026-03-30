@@ -7,7 +7,22 @@ const warehouseRoutes= require('./routes/warehouse-routes')
 const productRoutes= require('./routes/product-routes')
 
 app.use(express.json());
-app.use(cors());
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://inventory-management-system-fronten-orcin.vercel.app/"
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true
+}));
 app.use('/api/orders', orderRoutes);
 app.use('/api/warehouse', warehouseRoutes);
 app.use('/api/products', productRoutes);
