@@ -10,7 +10,7 @@ app.use(express.json());
 
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://inventory-management-system-fronten-orcin.vercel.app/"
+  "https://inventory-management-system-fronten-orcin.vercel.app"
 ];
 
 app.use(cors({
